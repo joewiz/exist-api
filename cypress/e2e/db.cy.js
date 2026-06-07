@@ -288,4 +288,78 @@ describe('/api/db', () => {
       });
     });
   });
+
+  describe('path guard — paths outside /db are rejected with 400', () => {
+    // eXist core silently resolves a path that is not /db or under /db/ relative
+    // to /db (so /dbfoo becomes /db/dbfoo), placing data somewhere other than the
+    // client requested. The API rejects such paths at the boundary instead.
+    const outsidePaths = ['/dbfoo', '/foo', 'db/no-leading-slash', '/'];
+
+    outsidePaths.forEach(badPath => {
+      it(`PUT /api/db/resource rejects ${badPath}`, () => {
+        cy.request({
+          url: '/api/db/resource',
+          method: 'PUT',
+          auth,
+          failOnStatusCode: false,
+          body: { path: `${badPath}/probe.xml`, content: '<probe/>', 'mime-type': 'application/xml' }
+        }).then(response => {
+          expect(response.status).to.eq(400);
+          expect(response.body.error).to.include('/db');
+        });
+      });
+
+      it(`POST /api/db/collection rejects ${badPath}`, () => {
+        cy.request({
+          url: '/api/db/collection',
+          method: 'POST',
+          auth,
+          failOnStatusCode: false,
+          body: { path: badPath }
+        }).then(response => {
+          expect(response.status).to.eq(400);
+          expect(response.body.error).to.include('/db');
+        });
+      });
+    });
+
+    it('POST /api/db/move rejects an out-of-/db target', () => {
+      cy.request({
+        url: '/api/db/move',
+        method: 'POST',
+        auth,
+        failOnStatusCode: false,
+        body: { source: '/db/apps', target: '/dbfoo' }
+      }).then(response => {
+        expect(response.status).to.eq(400);
+        expect(response.body.error).to.include('/db');
+      });
+    });
+
+    it('POST /api/db/copy rejects an out-of-/db source', () => {
+      cy.request({
+        url: '/api/db/copy',
+        method: 'POST',
+        auth,
+        failOnStatusCode: false,
+        body: { source: '/dbfoo', target: '/db/apps' }
+      }).then(response => {
+        expect(response.status).to.eq(400);
+        expect(response.body.error).to.include('/db');
+      });
+    });
+
+    it('still accepts /db itself for create-collection (idempotent root)', () => {
+      // /db always exists; creating it should not trip the guard (no 400).
+      cy.request({
+        url: '/api/db/collection',
+        method: 'POST',
+        auth,
+        failOnStatusCode: false,
+        body: { path: '/db' }
+      }).then(response => {
+        expect(response.status).to.not.eq(400);
+      });
+    });
+  });
 });
