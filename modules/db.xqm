@@ -245,6 +245,8 @@ declare function db:store-resource($request as map(*)) {
     return
         if (empty($path) or empty($content))
         then roaster:response(400, map { "error": "Missing required fields: path, content" })
+        else if (not(db:under-db($path)))
+        then db:invalid-path-response($path)
         else
             let $collection := replace($path, "/[^/]+$", "")
             let $resource := replace($path, "^.*/", "")
@@ -295,6 +297,22 @@ declare %private function db:is-protected($path as xs:string) as xs:boolean {
 };
 
 (:~
+ : A valid database path is "/db" itself or a path under "/db/". eXist core silently resolves
+ : any other path relative to /db (e.g. "/dbfoo" becomes "/db/dbfoo") and returns success, so a
+ : client that passes a path it believes absolute can have its data placed somewhere other than
+ : requested, with no error. Reject such paths with 400 at the API boundary instead.
+ :)
+declare %private function db:under-db($path as xs:string?) as xs:boolean {
+    exists($path) and ($path = "/db" or starts-with($path, "/db/"))
+};
+
+declare %private function db:invalid-path-response($path as xs:string?) {
+    roaster:response(400, map {
+        "error": "Path must be /db or under /db/ (e.g. /db/apps/myapp): " || ($path, "")[1]
+    })
+};
+
+(:~
  : Remove resource.
  : DELETE /api/db/resource?path=...
  :)
@@ -303,6 +321,8 @@ declare function db:remove-resource($request as map(*)) {
     return
         if (empty($path))
         then roaster:response(400, map { "error": "Missing required parameter: path" })
+        else if (not(db:under-db($path)))
+        then db:invalid-path-response($path)
         else if (db:is-protected($path))
         then roaster:response(403, map { "error": "Cannot delete protected path: " || $path })
         else if (not(doc-available($path)) and not(util:binary-doc-available($path)))
@@ -323,6 +343,8 @@ declare function db:create-collection($request as map(*)) {
     return
         if (empty($path))
         then roaster:response(400, map { "error": "Missing required field: path" })
+        else if (not(db:under-db($path)))
+        then db:invalid-path-response($path)
         else
             let $parent := replace($path, "/[^/]+$", "")
             let $name := replace($path, "^.*/", "")
@@ -344,6 +366,8 @@ declare function db:remove-collection($request as map(*)) {
     return
         if (empty($path))
         then roaster:response(400, map { "error": "Missing required parameter: path" })
+        else if (not(db:under-db($path)))
+        then db:invalid-path-response($path)
         else if (db:is-protected($path))
         then roaster:response(403, map { "error": "Cannot delete protected path: " || $path })
         else if (not(xmldb:collection-available($path)))
@@ -372,6 +396,8 @@ declare function db:move($request as map(*)) {
     return
         if (empty($source))
         then roaster:response(400, map { "error": "Missing required field: source" })
+        else if (not(db:under-db($source)))
+        then db:invalid-path-response($source)
         else if (exists($newName)) then
             (: Rename in place :)
             let $src-collection := replace($source, "/[^/]+$", "")
@@ -385,6 +411,8 @@ declare function db:move($request as map(*)) {
                      map { "renamed": $source, "to": $src-collection || "/" || $newName })
         else if (empty($target)) then
             roaster:response(400, map { "error": "Missing required field: target or newName" })
+        else if (not(db:under-db($target)))
+        then db:invalid-path-response($target)
         else if (xmldb:collection-available($source)) then
             let $_ := xmldb:move($source, $target)
             return map { "moved": $source, "to": $target }
@@ -415,6 +443,10 @@ declare function db:copy($request as map(*)) {
     return
         if (empty($source) or empty($target))
         then map { "error": "Missing required fields: source, target" }
+        else if (not(db:under-db($source)))
+        then db:invalid-path-response($source)
+        else if (not(db:under-db($target)))
+        then db:invalid-path-response($target)
         else if (xmldb:collection-available($source))
         then
             let $_ := xmldb:copy-collection($source, $target)
