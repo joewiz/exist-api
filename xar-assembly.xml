@@ -32,6 +32,7 @@
                 <include>README.md</include>
                 <include>LICENSE</include>
                 <include>controller.xq</include>
+                <include>api.json</include>
             </includes>
         </fileSet>
         <fileSet>

@@ -21,7 +21,7 @@ eXist-db ships several HTTP surfaces accumulated over its history:
 `existdb-openapi` is **none of the above** — it's a new, OpenAPI-described
 surface that consolidates the operations modern eXist apps actually need (admin
 endpoints, query execution, language services for editor integration) under a
-coherent versioned contract. It's defined by [`modules/api.json`](modules/api.json),
+coherent versioned contract. It's defined by [`api.json`](api.json),
 served by the [Roaster](https://github.com/eeditiones/roaster) routing layer,
 and backed by a mix of XQuery handlers and Java-implemented XQuery functions
 for the performance-sensitive paths (cursor store, language analysis).
@@ -71,7 +71,7 @@ curl -u admin: -X DELETE \
 
 ## API surface
 
-The full spec lives in [`modules/api.json`](modules/api.json) (OpenAPI 3.0). A
+The full spec lives in [`api.json`](api.json) (OpenAPI 3.0). A
 non-exhaustive index of what's available, grouped by concern:
 
 ### Database
@@ -305,7 +305,7 @@ from request introspection.
 ```
 
 `app`/`section` query parameters narrow the result set (facet drill-down). See
-the OpenAPI spec (`modules/api.json`) for the full operation contract.
+the OpenAPI spec (`api.json`) for the full operation contract.
 
 ---
 

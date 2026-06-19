@@ -39,4 +39,4 @@ declare function local:lookup($operationId as xs:string) as function(*)? {
 (:~
  : Main entry: route the request according to api.json spec.
  :)
-roaster:route("modules/api.json", local:lookup#1)
+roaster:route("api.json", local:lookup#1)

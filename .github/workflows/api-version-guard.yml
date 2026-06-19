@@ -1,23 +1,23 @@
 name: API version guard
 
-# The OpenAPI contract version (modules/api.json -> info.version) is tracked
+# The OpenAPI contract version (api.json -> info.version) is tracked
 # independently of the package version (pom.xml): the contract changes far less
 # often than the package. This guard enforces the one invariant that keeps the
 # contract version honest — if api.json changes in a PR, info.version must change
 # too. It does not police the size of the bump (patch/minor/major); that is left
 # to the author's semver judgment (and to a future automation, see the follow-up).
 #
-# Triggered only when modules/api.json is touched (PRs and branch pushes — the
-# latter gives contributors feedback before they open a PR). NOTE: keep this an
-# advisory check, not a required one — a paths-filtered job that is required would
-# block PRs that don't touch api.json (the check would never report).
+# Triggered only when api.json is touched (PRs and branch pushes — the latter
+# gives contributors feedback before they open a PR). NOTE: keep this an advisory
+# check, not a required one — a paths-filtered job that is required would block
+# PRs that don't touch api.json (the check would never report).
 
 on:
   pull_request:
     branches: [develop]
-    paths: ['modules/api.json']
+    paths: ['api.json']
   push:
-    paths: ['modules/api.json']
+    paths: ['api.json']
 
 permissions:
   contents: read
@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - name: Check modules/api.json info.version
+      - name: Check api.json info.version
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             base='${{ github.event.pull_request.base.sha }}'
@@ -38,15 +38,18 @@ jobs:
             git fetch --no-tags --quiet origin develop
             base="$(git merge-base FETCH_HEAD HEAD)"
           fi
-          if git diff --quiet "$base" HEAD -- modules/api.json; then
-            echo "modules/api.json unchanged relative to base — no API version bump required."
+          if git diff --quiet "$base" HEAD -- api.json; then
+            echo "api.json unchanged relative to base — no API version bump required."
             exit 0
           fi
-          old=$(git show "$base:modules/api.json" | jq -r '.info.version')
-          new=$(jq -r '.info.version' modules/api.json)
-          echo "modules/api.json changed. info.version: '$old' -> '$new'"
+          # Tolerate api.json not existing at the base (e.g. the commit that moved
+          # it to the project root): old resolves to empty, which differs from the
+          # new version, so the guard passes without a crash.
+          old=$(git show "$base:api.json" 2>/dev/null | jq -r '.info.version' 2>/dev/null || echo "")
+          new=$(jq -r '.info.version' api.json)
+          echo "api.json changed. info.version: '$old' -> '$new'"
           if [ "$old" = "$new" ]; then
-            echo "::error file=modules/api.json::modules/api.json changed but info.version did not (still '$new'). The OpenAPI contract version is tracked independently of the package version — bump info.version whenever the API contract changes."
+            echo "::error file=api.json::api.json changed but info.version did not (still '$new'). The OpenAPI contract version is tracked independently of the package version — bump info.version whenever the API contract changes."
             exit 1
           fi
           echo "info.version was bumped — OK"
